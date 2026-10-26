@@ -1,6 +1,6 @@
 
 export type DeskId = "oak" | "white";
-export type ChairId = "sage" | "black";
+export type ChairId = "taupe" | "black";
 export type AccessoryId = "monitor" | "plant";
 
 export type Product = {
@@ -13,29 +13,33 @@ export type Product = {
 export const desks: Product[] = [
   {
     id: "oak",
-    name: "Oak Studio Desk",
-    description: "Warm oak finish",
+    name: "Natural Oak Desk",
+    description:
+      "A warm, light oak finish that brings a natural feel to your workspace.",
     pricePerMonth: 45,
   },
   {
     id: "white",
-    name: "Minimal White Desk",
-    description: "Clean, contemporary finish",
+    name: "Warm White Desk",
+    description:
+      "A soft off-white finish for a bright, clean, minimalist workspace.",
     pricePerMonth: 40,
   },
 ];
 
 export const chairs: Product[] = [
   {
-    id: "sage",
-    name: "Sage Task Chair",
-    description: "Soft sage upholstery",
+    id: "taupe",
+    name: "Warm Taupe Ergonomic Chair",
+    description:
+      "A warm, earthy grey-brown finish that brings a subtle, refined feel to your workspace.",
     pricePerMonth: 25,
   },
   {
     id: "black",
-    name: "Graphite Task Chair",
-    description: "Modern dark finish",
+    name: "Graphite Grey Chair",
+    description:
+      "A versatile mid-grey finish with a modern, understated look.",
     pricePerMonth: 30,
   },
 ];

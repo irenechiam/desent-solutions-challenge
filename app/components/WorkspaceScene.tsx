@@ -1,9 +1,10 @@
 
 "use client";
 
+import ModelAsset from "./ModelAsset";
 import { Canvas } from "@react-three/fiber";
 import { CameraControls } from "@react-three/drei";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import * as THREE from "three";
 
 import type {
@@ -13,11 +14,27 @@ import type {
 } from "../data/products";
 
 type ViewMode = "iso" | "front";
+type FocusTarget = "workspace" | "desk" | "chair" | "monitor" | "plant";
 
 type WorkspaceSceneProps = {
   selectedDesk: DeskId;
   selectedChair: ChairId;
   selectedAccessories: AccessoryId[];
+  onItemSelect: (item: FocusTarget) => void;
+};
+
+const cameraPositions: Record<
+  FocusTarget,
+  {
+    camera: [number, number, number];
+    target: [number, number, number];
+  }
+> = {
+  workspace: { camera: [6, 5, 7], target: [0, 1, 0] },
+  desk: { camera: [3.5, 3.4, 4.2], target: [0, 1.0, 0] },
+  chair: { camera: [2.2, 2.5, 4.4], target: [0, 1.0, 1.1] },
+  monitor: { camera: [1.5, 3.0, 2.5], target: [0, 1.7, -0.35] },
+  plant: { camera: [-2.4, 2.8, 2.2], target: [-1.2, 1.65, -0.35] },
 };
 
 function Desk({ variant }: { variant: DeskId }) {
@@ -25,15 +42,11 @@ function Desk({ variant }: { variant: DeskId }) {
 
   return (
     <group>
-      {/* Desktop */}
       <mesh position={[0, 1.5, 0]} castShadow receiveShadow>
         <boxGeometry args={[3.4, 0.16, 1.5]} />
-        <meshStandardMaterial
-          color={isWhite ? "#F0EEE8" : "#B88961"}
-        />
+        <meshStandardMaterial color={isWhite ? "#F0EEE8" : "#B88961"} />
       </mesh>
 
-      {/* Four legs */}
       {[-1.45, 1.45].map((x) =>
         [-0.58, 0.58].map((z) => (
           <mesh
@@ -58,34 +71,24 @@ function Chair({ variant }: { variant: ChairId }) {
 
   return (
     <group position={[0, 0, 1.25]} rotation={[0, Math.PI, 0]}>
-      {/* Seat */}
       <mesh position={[0, 0.85, 0]} castShadow>
         <boxGeometry args={[0.9, 0.16, 0.8]} />
         <meshStandardMaterial color={upholstery} />
       </mesh>
 
-      {/* Backrest */}
       <mesh position={[0, 1.3, -0.32]} castShadow>
         <boxGeometry args={[0.85, 0.9, 0.12]} />
         <meshStandardMaterial color={upholstery} />
       </mesh>
 
-      {/* Central support */}
       <mesh position={[0, 0.4, 0]}>
         <cylinderGeometry args={[0.07, 0.07, 0.75, 16]} />
-        <meshStandardMaterial
-          color="#55565A"
-          metalness={0.5}
-        />
+        <meshStandardMaterial color="#55565A" metalness={0.5} />
       </mesh>
 
-      {/* Base */}
       <mesh position={[0, 0.08, 0]}>
         <cylinderGeometry args={[0.42, 0.42, 0.08, 5]} />
-        <meshStandardMaterial
-          color="#55565A"
-          metalness={0.5}
-        />
+        <meshStandardMaterial color="#55565A" metalness={0.5} />
       </mesh>
     </group>
   );
@@ -94,13 +97,11 @@ function Chair({ variant }: { variant: ChairId }) {
 function Monitor() {
   return (
     <group position={[0, 2.15, -0.35]}>
-      {/* Monitor frame */}
       <mesh>
         <boxGeometry args={[1.15, 0.7, 0.08]} />
         <meshStandardMaterial color="#292D32" />
       </mesh>
 
-      {/* Screen */}
       <mesh position={[0, 0, 0.045]}>
         <boxGeometry args={[1.04, 0.59, 0.015]} />
         <meshStandardMaterial
@@ -110,7 +111,6 @@ function Monitor() {
         />
       </mesh>
 
-      {/* Stand */}
       <mesh position={[0, -0.43, -0.02]}>
         <boxGeometry args={[0.08, 0.3, 0.08]} />
         <meshStandardMaterial color="#55565A" />
@@ -127,13 +127,11 @@ function Monitor() {
 function Plant() {
   return (
     <group position={[-1.2, 1.58, -0.35]}>
-      {/* Pot */}
       <mesh position={[0, 0.13, 0]}>
         <cylinderGeometry args={[0.13, 0.1, 0.26, 12]} />
         <meshStandardMaterial color="#D99C72" />
       </mesh>
 
-      {/* Leaves */}
       {[0, 1, 2, 3, 4].map((i) => (
         <mesh
           key={i}
@@ -156,26 +154,60 @@ export default function WorkspaceScene({
   selectedDesk,
   selectedChair,
   selectedAccessories,
+  onItemSelect,
 }: WorkspaceSceneProps) {
   const [view, setView] = useState<ViewMode>("iso");
+  const [focusedItem, setFocusedItem] =
+    useState<FocusTarget>("workspace");
+
   const controls = useRef<any>(null);
+  const initialized = useRef(false);
+
+  const setControlsRef = useCallback((instance: any) => {
+    controls.current = instance;
+
+    if (instance && !initialized.current) {
+      initialized.current = true;
+      const { camera, target } = cameraPositions.workspace;
+      instance.setLookAt(...camera, ...target, false);
+    }
+  }, []);
+
+  function focusItem(target: FocusTarget) {
+    setFocusedItem(target);
+    onItemSelect(target);
+
+    const destination = cameraPositions[target];
+
+    controls.current?.setLookAt(
+      ...destination.camera,
+      ...destination.target,
+      true
+    );
+
+    if (target === "workspace") {
+      setView("iso");
+    }
+  }
 
   function switchView(nextView: ViewMode) {
     setView(nextView);
+    setFocusedItem("workspace");
+    onItemSelect("workspace");
 
-    if (nextView === "iso") {
-      controls.current?.setLookAt(
-        6, 5, 7,
-        0, 1, 0,
-        true
-      );
-    } else {
-      controls.current?.setLookAt(
-        0, 3, 10,
-        0, 1, 0,
-        true
-      );
-    }
+    const destination =
+      nextView === "iso"
+        ? cameraPositions.workspace
+        : {
+            camera: [0, 2.8, 10] as [number, number, number],
+            target: [0, 0.8, 0] as [number, number, number],
+          };
+
+    controls.current?.setLookAt(
+      ...destination.camera,
+      ...destination.target,
+      true
+    );
   }
 
   const buttonClass = (mode: ViewMode) =>
@@ -185,14 +217,27 @@ export default function WorkspaceScene({
         : "text-stone-600 hover:bg-stone-100"
     }`;
 
+  function clickableProps(target: FocusTarget) {
+    return {
+      onClick: (event: { stopPropagation: () => void }) => {
+        event.stopPropagation();
+        focusItem(target);
+      },
+      onPointerOver: () => {
+        document.body.style.cursor = "pointer";
+      },
+      onPointerOut: () => {
+        document.body.style.cursor = "auto";
+      },
+    };
+  }
+
   return (
     <div className="absolute inset-0">
-      {/* Full-screen 3D scene */}
       <Canvas
         className="absolute inset-0"
         shadows={{ type: THREE.PCFShadowMap }}
         camera={{ position: [6, 5, 7], fov: 38 }}
-        onCreated={({ camera }) => camera.lookAt(0, 1, 0)}
       >
         <color attach="background" args={["#F5F1E9"]} />
 
@@ -204,7 +249,6 @@ export default function WorkspaceScene({
           castShadow
         />
 
-        {/* Ground */}
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
           position={[0, -0.04, 0]}
@@ -214,27 +258,70 @@ export default function WorkspaceScene({
           <meshStandardMaterial color="#E9E2D6" />
         </mesh>
 
-        {/* Selected furniture */}
-        <Desk variant={selectedDesk} />
-        <Chair variant={selectedChair} />
+        <group>
+          <group {...clickableProps("desk")}>
+            <ModelAsset
+              url="/models/office-table.glb"
+              width={2.9}
+              tint={selectedDesk === "white" ? "#F0EEE8" : "#C7A17D"}
+          />
+          </group>
 
-        {/* Optional accessories */}
-        {selectedAccessories.includes("monitor") && <Monitor />}
-        {selectedAccessories.includes("plant") && <Plant />}
+          <group {...clickableProps("chair")}>
+            <group
+                position={[0, 0, 1.25]}
+                rotation={[0, -1.35, 0]}
+            >
+            <ModelAsset
+              url="/models/office-chair.glb"
+              width={1.3}
+              tint={selectedChair === "black" ? "#85888A" : "#A69B8D"}
+            />
+          </group>
+        </group>
+
+          {selectedAccessories.includes("monitor") && (
+            <group {...clickableProps("monitor")}>
+                <group
+                    position={[0, 1.55, -0.35]}
+                    scale={1}
+                >
+                <ModelAsset
+                    url="/models/monitor.glb"
+                    width={1.25}
+                />
+                </group>
+            </group>
+          )}
+
+          {selectedAccessories.includes("plant") && (
+            <group {...clickableProps("plant")}>
+              <group
+                  position={[-1.1, 1.55, -0.35]}
+                  scale={0.5}
+              >
+                  <ModelAsset
+                  url="/models/potted-plant.glb"
+                  width={0.6}
+                  />
+              </group>
+            </group>
+          )}
+        </group>
 
         <CameraControls
-          ref={controls}
+          ref={setControlsRef}
           makeDefault
-          smoothTime={0.5}
-          minDistance={5}
+          smoothTime={0.7}
+          minDistance={2}
           maxDistance={14}
           maxPolarAngle={Math.PI / 2}
         />
       </Canvas>
 
-      {/* Floating camera controls */}
       <div className="absolute right-5 top-5 z-20 flex rounded-xl border border-stone-200/70 bg-white/85 p-1 shadow-sm backdrop-blur-md sm:right-10 sm:top-10">
         <button
+          type="button"
           onClick={() => switchView("iso")}
           aria-pressed={view === "iso"}
           className={buttonClass("iso")}
@@ -243,6 +330,7 @@ export default function WorkspaceScene({
         </button>
 
         <button
+          type="button"
           onClick={() => switchView("front")}
           aria-pressed={view === "front"}
           className={buttonClass("front")}
@@ -251,9 +339,18 @@ export default function WorkspaceScene({
         </button>
       </div>
 
-      {/* Interaction hint */}
+      {focusedItem !== "workspace" && (
+        <button
+          type="button"
+          onClick={() => focusItem("workspace")}
+          className="absolute left-1/2 top-5 z-20 -translate-x-1/2 rounded-full border border-stone-200 bg-white/90 px-4 py-2 text-sm text-stone-700 shadow-sm backdrop-blur-md transition hover:bg-white"
+        >
+          ← Back to workspace
+        </button>
+      )}
+
       <p className="pointer-events-none absolute bottom-5 left-1/2 z-10 -translate-x-1/2 rounded-full border border-stone-200/70 bg-white/75 px-4 py-2 text-xs text-stone-600 backdrop-blur-md">
-        Drag to explore your workspace
+        Click an item to explore · Drag to rotate
       </p>
     </div>
   );
