@@ -1,6 +1,8 @@
 
 "use client";
 
+import { useState } from "react";
+
 import {
   desks,
   chairs,
@@ -12,15 +14,11 @@ import {
 
 type SelectedItem = "workspace" | "desk" | "chair" | "monitor" | "plant";
 
-const deskSwatches: Record<DeskId, string> = {
-    oak: "#B98B5E",
-    white: "#F5F3EE",
-  };
-  
-const chairSwatches: Record<ChairId, string> = {
-    taupe: "#A69B8D",
-    black: "#30312F",
-};
+type CategoryName =
+  | "Desks"
+  | "Chairs"
+  | "Plants"
+  | "Office Equipment";
 
 type FurniturePanelProps = {
   selectedItem: SelectedItem;
@@ -41,21 +39,118 @@ export default function FurniturePanel({
   onChairChange,
   onAccessoryToggle,
 }: FurniturePanelProps) {
-  const panelClass =
-    "w-full space-y-6 rounded-2xl border border-stone-200 bg-white/90 p-5 shadow-sm backdrop-blur-md";
+  const [openCategories, setOpenCategories] = useState<CategoryName[]>([]);
 
-  const selectedDeskData = desks.find((item) => item.id === selectedDesk);
-  const selectedChairData = chairs.find((item) => item.id === selectedChair);
+  const panelClass =
+    "w-full space-y-5 rounded-2xl border border-stone-200 bg-white/90 p-5 shadow-sm backdrop-blur-md";
+
+  const selectedDeskData = desks.find(
+    (item) => item.id === selectedDesk
+  );
+
+  const selectedChairData = chairs.find(
+    (item) => item.id === selectedChair
+  );
 
   const selectedAccessoryData = accessories.find(
     (item) => item.id === selectedItem
   );
 
-  // Show product details when a 3D object is clicked.
+  function toggleCategory(category: CategoryName) {
+    setOpenCategories((current) =>
+      current.includes(category)
+        ? current.filter((item) => item !== category)
+        : [...current, category]
+    );
+  }
+
+  function renderCategoryHeader(
+    category: CategoryName,
+    description?: string
+  ) {
+    const isOpen = openCategories.includes(category);
+
+    return (
+      <button
+        type="button"
+        onClick={() => toggleCategory(category)}
+        aria-expanded={isOpen}
+        className="flex w-full items-center justify-between gap-3 py-1 text-left"
+      >
+        <span>
+          <span className="block text-sm font-semibold text-stone-800">
+            {category}
+          </span>
+          {description && (
+            <span className="mt-1 block text-xs text-stone-500">
+              {description}
+            </span>
+          )}
+        </span>
+
+        <svg
+          className={`h-4 w-4 shrink-0 text-stone-500 transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          aria-hidden="true"
+        >
+          <path
+            d="m6 9 6 6 6-6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+    );
+  }
+
+  function renderProductCard(
+    product: {
+      id: string;
+      name: string;
+      description: string;
+      pricePerMonth: number;
+    },
+    selected: boolean,
+    onSelect: () => void
+  ) {
+    return (
+      <button
+        key={product.id}
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
+        className={`w-full rounded-xl border p-3 text-left transition ${
+          selected
+            ? "border-emerald-800 bg-emerald-50"
+            : "border-stone-200 hover:border-stone-400"
+        }`}
+      >
+        <span className="block text-sm font-medium text-stone-900">
+          {product.name}
+        </span>
+
+        <span className="mt-1 block text-xs leading-5 text-stone-500">
+          {product.description}
+        </span>
+
+        <span className="mt-2 block text-sm font-semibold text-stone-800">
+          ${product.pricePerMonth} / month
+        </span>
+      </button>
+    );
+  }
+
+  // Detail view when a 3D object is selected.
   if (selectedItem !== "workspace") {
     const isDesk = selectedItem === "desk";
     const isChair = selectedItem === "chair";
-    const isAccessory = selectedItem === "monitor" || selectedItem === "plant";
+    const isAccessory =
+      selectedItem === "monitor" || selectedItem === "plant";
 
     const product = isDesk
       ? selectedDeskData
@@ -63,9 +158,7 @@ export default function FurniturePanel({
         ? selectedChairData
         : selectedAccessoryData;
 
-    if (!product) {
-      return null;
-    }
+    if (!product) return null;
 
     const isAccessorySelected = selectedAccessories.includes(
       selectedItem as AccessoryId
@@ -95,76 +188,56 @@ export default function FurniturePanel({
         </div>
 
         {isDesk && (
-          <section>
-            <h3 className="mb-3 text-sm font-semibold text-stone-800">
-              Choose a desk
-            </h3>
+          <section className="space-y-3">
+            {renderCategoryHeader("Desks", "Choose a desk finish")}
 
-            <div className="space-y-2">
-              {desks.map((desk) => (
-                <button
-                  key={desk.id}
-                  type="button"
-                  onClick={() => onDeskChange(desk.id as DeskId)}
-                  className={`w-full rounded-xl border p-3 text-left transition ${
-                    selectedDesk === desk.id
-                      ? "border-emerald-800 bg-emerald-50"
-                      : "border-stone-200 hover:border-stone-400"
-                  }`}
-                >
-                  <span className="block text-sm font-medium text-stone-900">
-                    {desk.name}
-                  </span>
-                  <span className="mt-1 block text-xs text-stone-500">
-                    ${desk.pricePerMonth} / month
-                  </span>
-                </button>
-              ))}
-            </div>
+            {openCategories.includes("Desks") && (
+              <div className="space-y-2">
+                {desks.map((desk) =>
+                  renderProductCard(
+                    desk,
+                    selectedDesk === desk.id,
+                    () => onDeskChange(desk.id as DeskId)
+                  )
+                )}
+              </div>
+            )}
           </section>
         )}
 
         {isChair && (
-          <section>
-            <h3 className="mb-3 text-sm font-semibold text-stone-800">
-              Choose a chair
-            </h3>
+          <section className="space-y-3">
+            {renderCategoryHeader("Chairs", "Choose a chair finish")}
 
-            <div className="space-y-2">
-              {chairs.map((chair) => (
-                <button
-                  key={chair.id}
-                  type="button"
-                  onClick={() => onChairChange(chair.id as ChairId)}
-                  className={`w-full rounded-xl border p-3 text-left transition ${
-                    selectedChair === chair.id
-                      ? "border-emerald-800 bg-emerald-50"
-                      : "border-stone-200 hover:border-stone-400"
-                  }`}
-                >
-                  <span className="block text-sm font-medium text-stone-900">
-                    {chair.name}
-                  </span>
-                  <span className="mt-1 block text-xs text-stone-500">
-                    ${chair.pricePerMonth} / month
-                  </span>
-                </button>
-              ))}
-            </div>
+            {openCategories.includes("Chairs") && (
+              <div className="space-y-2">
+                {chairs.map((chair) =>
+                  renderProductCard(
+                    chair,
+                    selectedChair === chair.id,
+                    () => onChairChange(chair.id as ChairId)
+                  )
+                )}
+              </div>
+            )}
           </section>
         )}
 
         {isAccessory && (
           <button
             type="button"
-            onClick={() => onAccessoryToggle(selectedItem as AccessoryId)}
+            onClick={() =>
+              onAccessoryToggle(selectedItem as AccessoryId)
+            }
             className={`w-full rounded-xl px-4 py-3 text-sm font-semibold transition ${
               isAccessorySelected
                 ? "border border-stone-300 bg-white text-stone-700 hover:bg-stone-50"
                 : "bg-emerald-800 text-white hover:bg-emerald-900"
             }`}
           >
-            {isAccessorySelected ? "Remove from workspace" : "Add to workspace"}
+            {isAccessorySelected
+              ? "Remove from workspace"
+              : "Add to workspace"}
           </button>
         )}
 
@@ -176,117 +249,149 @@ export default function FurniturePanel({
     );
   }
 
-  // Default view: the full workspace builder.
+  // Workspace builder with collapsible product categories.
   return (
     <aside className={panelClass}>
       <div>
         <h2 className="text-lg font-semibold text-stone-900">
           Build your workspace
         </h2>
+
         <p className="mt-1 text-sm text-stone-500">
           Choose the pieces that work for you.
         </p>
       </div>
 
-      <section>
-        <h3 className="mb-3 text-sm font-semibold text-stone-800">Desks</h3>
+      {/* Desks */}
+      <section className="space-y-3">
+        {renderCategoryHeader("Desks")}
 
-        <div className="space-y-2">
-          {desks.map((desk) => (
-            <button
-              key={desk.id}
-              type="button"
-              onClick={() => onDeskChange(desk.id as DeskId)}
-              className={`w-full rounded-xl border p-3 text-left transition ${
-                selectedDesk === desk.id
-                  ? "border-emerald-800 bg-emerald-50"
-                  : "border-stone-200 hover:border-stone-400"
-              }`}
-            >
-              <span className="block text-sm font-medium text-stone-900">
-                {desk.name}
-              </span>
-              <span className="mt-1 block text-xs text-stone-500">
-                {desk.description}
-              </span>
-              <span className="mt-2 block text-sm font-semibold text-stone-800">
-                ${desk.pricePerMonth} / month
-              </span>
-            </button>
-          ))}
-        </div>
+        {openCategories.includes("Desks") && (
+          <div className="space-y-2">
+            {desks.map((desk) =>
+              renderProductCard(
+                desk,
+                selectedDesk === desk.id,
+                () => onDeskChange(desk.id as DeskId)
+              )
+            )}
+          </div>
+        )}
       </section>
 
-      <section>
-        <h3 className="mb-3 text-sm font-semibold text-stone-800">Chairs</h3>
+      <div className="border-t border-stone-100" />
 
-        <div className="space-y-2">
-          {chairs.map((chair) => (
-            <button
-              key={chair.id}
-              type="button"
-              onClick={() => onChairChange(chair.id as ChairId)}
-              className={`w-full rounded-xl border p-3 text-left transition ${
-                selectedChair === chair.id
-                  ? "border-emerald-800 bg-emerald-50"
-                  : "border-stone-200 hover:border-stone-400"
-              }`}
-            >
-              <span className="block text-sm font-medium text-stone-900">
-                {chair.name}
-              </span>
-              <span className="mt-1 block text-xs text-stone-500">
-                {chair.description}
-              </span>
-              <span className="mt-2 block text-sm font-semibold text-stone-800">
-                ${chair.pricePerMonth} / month
-              </span>
-            </button>
-          ))}
-        </div>
+      {/* Chairs */}
+      <section className="space-y-3">
+        {renderCategoryHeader("Chairs")}
+
+        {openCategories.includes("Chairs") && (
+          <div className="space-y-2">
+            {chairs.map((chair) =>
+              renderProductCard(
+                chair,
+                selectedChair === chair.id,
+                () => onChairChange(chair.id as ChairId)
+              )
+            )}
+          </div>
+        )}
       </section>
 
-      <section>
-        <h3 className="mb-3 text-sm font-semibold text-stone-800">
-          Accessories
-        </h3>
+      <div className="border-t border-stone-100" />
 
-        <div className="space-y-3">
-          {accessories.map((accessory) => {
-            const checked = selectedAccessories.includes(
-              accessory.id as AccessoryId
-            );
+      {/* Plants */}
+      <section className="space-y-3">
+        {renderCategoryHeader("Plants")}
 
-            return (
-              <label
-                key={accessory.id}
-                className="flex cursor-pointer items-start gap-3"
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() =>
-                    onAccessoryToggle(accessory.id as AccessoryId)
-                  }
-                  className="mt-1 accent-emerald-800"
-                />
+        {openCategories.includes("Plants") && (
+          <div className="space-y-3">
+            {accessories
+              .filter((item) => item.id === "plant")
+              .map((plant) => {
+                const checked = selectedAccessories.includes(
+                  plant.id as AccessoryId
+                );
 
-                <span className="flex-1">
-                  <span className="block text-sm font-medium text-stone-800">
-                    {accessory.name}
-                  </span>
-                  <span className="block text-xs text-stone-500">
-                    {accessory.description}
-                  </span>
-                </span>
+                return (
+                  <label
+                    key={plant.id}
+                    className="flex cursor-pointer items-start gap-3"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() =>
+                        onAccessoryToggle(plant.id as AccessoryId)
+                      }
+                      className="mt-1 accent-emerald-800"
+                    />
 
-                <span className="text-sm text-stone-700">
-                  ${accessory.pricePerMonth}/mo
-                </span>
-              </label>
-            );
-          })}
-        </div>
+                    <span className="flex-1">
+                      <span className="block text-sm font-medium text-stone-800">
+                        {plant.name}
+                      </span>
+                      <span className="block text-xs leading-5 text-stone-500">
+                        {plant.description}
+                      </span>
+                    </span>
+
+                    <span className="whitespace-nowrap text-sm text-stone-700">
+                      ${plant.pricePerMonth}/mo
+                    </span>
+                  </label>
+                );
+              })}
+          </div>
+        )}
+      </section>
+
+      <div className="border-t border-stone-100" />
+
+      {/* Office Equipment */}
+      <section className="space-y-3">
+        {renderCategoryHeader("Office Equipment")}
+
+        {openCategories.includes("Office Equipment") && (
+          <div className="space-y-3">
+            {accessories
+              .filter((item) => item.id !== "plant")
+              .map((accessory) => {
+                const checked = selectedAccessories.includes(
+                  accessory.id as AccessoryId
+                );
+
+                return (
+                  <label
+                    key={accessory.id}
+                    className="flex cursor-pointer items-start gap-3"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() =>
+                        onAccessoryToggle(accessory.id as AccessoryId)
+                      }
+                      className="mt-1 accent-emerald-800"
+                    />
+
+                    <span className="flex-1">
+                      <span className="block text-sm font-medium text-stone-800">
+                        {accessory.name}
+                      </span>
+                      <span className="block text-xs leading-5 text-stone-500">
+                        {accessory.description}
+                      </span>
+                    </span>
+
+                    <span className="whitespace-nowrap text-sm text-stone-700">
+                      ${accessory.pricePerMonth}/mo
+                    </span>
+                  </label>
+                );
+              })}
+          </div>
+        )}
       </section>
     </aside>
   );
